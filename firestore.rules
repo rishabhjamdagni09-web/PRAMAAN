@@ -1,0 +1,183 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all unknown collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global security primitives & helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserRole() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? getUserDoc().data.role
+        : '';
+    }
+
+    function getUserDept() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? getUserDoc().data.departmentId
+        : '';
+    }
+
+    function isOfficial() {
+      return isSignedIn() && getUserRole() == 'OFFICIAL';
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        getUserRole() == 'SUPER_ADMIN' ||
+        request.auth.token.email == 'rishabhjamdagni09@gmail.com'
+      );
+    }
+
+    // 0. Test connection document for initial SDK boot check
+    match /test/connection {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 1. Users collection
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isOfficial() || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 2. Credentials collection (Citizen Vault)
+    match /credentials/{credentialId} {
+      allow read: if isSignedIn() && (resource.data.citizenId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && (request.resource.data.citizenId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (resource.data.citizenId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.citizenId == request.auth.uid || isAdmin());
+    }
+
+    // 3. Proof Requests
+    match /proofRequests/{requestId} {
+      allow read: if isSignedIn() && (
+        resource.data.citizenId == request.auth.uid ||
+        (isOfficial() && resource.data.requestingDeptId == getUserDept()) ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        (isOfficial() && request.resource.data.requestingDeptId == getUserDept()) ||
+        isAdmin()
+      );
+      allow update: if isSignedIn() && (
+        resource.data.citizenId == request.auth.uid ||
+        (isOfficial() && resource.data.requestingDeptId == getUserDept()) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 4. Zero-Knowledge Proofs
+    match /proofs/{proofId} {
+      allow read: if isSignedIn() && (
+        resource.data.citizenId == request.auth.uid ||
+        isOfficial() ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.citizenId == request.auth.uid ||
+        isAdmin()
+      );
+      allow update: if isSignedIn() && (
+        resource.data.citizenId == request.auth.uid ||
+        isOfficial() ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 5. Consent Grants (DPDP Act 2023)
+    match /consentGrants/{consentId} {
+      allow read: if isSignedIn() && (
+        resource.data.citizenId == request.auth.uid ||
+        (isOfficial() && (resource.data.granteeDeptId == getUserDept() || resource.data.departmentCode == getUserDept())) ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.citizenId == request.auth.uid ||
+        isAdmin()
+      );
+      allow update: if isSignedIn() && (
+        resource.data.citizenId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 6. Applications (Single Application Number - SAN)
+    match /applications/{applicationId} {
+      allow read: if isSignedIn() && (
+        resource.data.citizenId == request.auth.uid ||
+        (isOfficial() && (resource.data.departmentCode == getUserDept() || resource.data.departmentId == getUserDept())) ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.citizenId == request.auth.uid ||
+        isAdmin()
+      );
+      allow update: if isSignedIn() && (
+        (isOfficial() && (resource.data.departmentCode == getUserDept() || resource.data.departmentId == getUserDept())) ||
+        resource.data.citizenId == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 7. Application Events
+    match /applicationEvents/{eventId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // 8. Immutable Audit Log (SHA-256 Hash Chained)
+    // CRITICAL REQUIREMENT: Write-only from server-side logic! Never directly writable from the client.
+    match /auditLog/{logId} {
+      allow read: if isSignedIn() && (isOfficial() || isAdmin());
+      allow write: if false;
+    }
+
+    // 9. Schema Mappings
+    match /schemaMappings/{mappingId} {
+      allow read: if isSignedIn() && (isOfficial() || isAdmin());
+      allow create, update: if isSignedIn() && (isOfficial() || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // 10. Public Welfare Schemes Directory
+    match /schemes/{schemeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 11. Government Departments
+    match /departments/{deptId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 12. Public Grievances
+    match /grievances/{grievanceId} {
+      allow read, create: if true;
+      allow update, delete: if isOfficial() || isAdmin();
+    }
+  }
+}

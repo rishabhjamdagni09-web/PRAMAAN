@@ -1,0 +1,224 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated citizen, department official, or platform administrator.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "role": { "type": "string", "enum": ["CITIZEN", "OFFICIAL", "SUPER_ADMIN"], "description": "User access role" },
+        "name": { "type": "string", "maxLength": 100, "description": "Full name" },
+        "nameHi": { "type": "string", "maxLength": 100, "description": "Full name in Hindi" },
+        "email": { "type": "string", "maxLength": 150, "description": "Email address" },
+        "phone": { "type": "string", "maxLength": 20, "description": "Phone number" },
+        "departmentId": { "type": "string", "maxLength": 64, "description": "Department ID if official" },
+        "departmentName": { "type": "string", "maxLength": 150, "description": "Department name if official" },
+        "aadhaarRefMasked": { "type": "string", "maxLength": 20, "description": "Masked Aadhaar or VID reference" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of account creation" }
+      },
+      "required": ["uid", "role", "name", "createdAt"]
+    },
+    "Credential": {
+      "title": "Credential",
+      "description": "Verifiable sovereign credential reference stored in citizen vault.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Credential ID" },
+        "citizenId": { "type": "string", "description": "UID of the citizen owner" },
+        "title": { "type": "string", "maxLength": 150, "description": "Credential title" },
+        "titleHi": { "type": "string", "maxLength": 150, "description": "Hindi title" },
+        "issuingDeptCode": { "type": "string", "maxLength": 32, "description": "Issuing department code" },
+        "issuingDeptName": { "type": "string", "maxLength": 150, "description": "Issuing department name" },
+        "credentialType": { "type": "string", "description": "Type of credential (IDENTITY, INCOME, LAND_RECORD, ACADEMIC)" },
+        "issuedAt": { "type": "string", "description": "ISO timestamp of issuance" },
+        "expiresAt": { "type": "string", "description": "ISO timestamp of expiry" },
+        "commitmentHash": { "type": "string", "maxLength": 128, "description": "Cryptographic commitment hash" },
+        "rawAttributesMasked": { "type": "object", "description": "Masked attributes object" }
+      },
+      "required": ["citizenId", "title", "issuingDeptCode", "credentialType", "issuedAt"]
+    },
+    "ProofRequest": {
+      "title": "ProofRequest",
+      "description": "Verification request emitted by a department to a citizen.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Proof request unique ID" },
+        "citizenId": { "type": "string", "description": "Target citizen UID" },
+        "requestingDeptId": { "type": "string", "description": "Department requesting predicate verification" },
+        "predicate": { "type": "string", "description": "Predicate definition or expression" },
+        "status": { "type": "string", "enum": ["PENDING", "FULFILLED", "EXPIRED", "REJECTED"], "description": "Request state" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["citizenId", "requestingDeptId", "predicate", "status", "createdAt"]
+    },
+    "Proof": {
+      "title": "Proof",
+      "description": "Zero-knowledge proof record satisfying predicate without raw data disclosure.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Proof identifier" },
+        "proofRequestId": { "type": "string", "description": "Associated proof request ID or scheme reference" },
+        "citizenId": { "type": "string", "description": "UID of the citizen prover" },
+        "attribute": { "type": "string", "description": "Attribute proven" },
+        "operator": { "type": "string", "description": "Predicate operator" },
+        "threshold": { "type": "string", "description": "Threshold value" },
+        "claimSatisfied": { "type": "boolean", "description": "Boolean truth value of predicate" },
+        "commitment": { "type": "string", "description": "Pedersen commitment hash" },
+        "nullifierHash": { "type": "string", "description": "Single-use cryptographic nullifier" },
+        "verified": { "type": "boolean", "description": "Cryptographic verification status" },
+        "consumed": { "type": "boolean", "description": "Whether nullifier has been spent" },
+        "generatedAt": { "type": "string", "description": "Proof generation timestamp" },
+        "expiresAt": { "type": "string", "description": "Proof expiry timestamp" }
+      },
+      "required": ["citizenId", "verified", "generatedAt", "expiresAt", "consumed"]
+    },
+    "ConsentGrant": {
+      "title": "ConsentGrant",
+      "description": "DPDP Act 2023 compliant data access consent agreement.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Consent record ID" },
+        "citizenId": { "type": "string", "description": "UID of citizen granting consent" },
+        "granteeDeptId": { "type": "string", "description": "Department code/id granted consent" },
+        "departmentCode": { "type": "string", "description": "Department code" },
+        "departmentName": { "type": "string", "description": "Department display name" },
+        "purpose": { "type": "string", "maxLength": 255, "description": "Specific statutory or administrative purpose" },
+        "purposeHi": { "type": "string", "maxLength": 255, "description": "Purpose description in Hindi" },
+        "sanNumber": { "type": "string", "description": "Associated Single Application Number" },
+        "scope": { "type": "array", "description": "List of authorized predicate verification scopes" },
+        "status": { "type": "string", "enum": ["ACTIVE", "REVOKED", "EXPIRED"], "description": "Current status" },
+        "grantedAt": { "type": "string", "description": "Timestamp of grant" },
+        "validUntil": { "type": "string", "description": "Consent expiration timestamp" },
+        "revoked": { "type": "boolean", "description": "Whether consent was withdrawn" },
+        "revokedAt": { "type": "string", "description": "Revocation timestamp" },
+        "revocationReason": { "type": "string", "description": "Reason for withdrawal" },
+        "accessCount": { "type": "number", "description": "Number of times proof was evaluated" }
+      },
+      "required": ["citizenId", "granteeDeptId", "purpose", "grantedAt", "validUntil", "status"]
+    },
+    "Application": {
+      "title": "Application",
+      "description": "Unified welfare scheme application tracked via Single Application Number (SAN).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Application record ID" },
+        "sanNumber": { "type": "string", "description": "Sovereign Single Application Number (e.g. SAN-2026-IND-123456)" },
+        "citizenId": { "type": "string", "description": "UID of citizen applicant" },
+        "citizenName": { "type": "string", "description": "Citizen full name" },
+        "schemeId": { "type": "string", "description": "Target scheme identifier" },
+        "schemeCode": { "type": "string", "description": "Target scheme code" },
+        "schemeTitle": { "type": "string", "description": "Scheme title" },
+        "schemeTitleHi": { "type": "string", "description": "Scheme title in Hindi" },
+        "departmentCode": { "type": "string", "description": "Adjudicating department code" },
+        "departmentName": { "type": "string", "description": "Adjudicating department name" },
+        "submittedAt": { "type": "string", "description": "Submission ISO timestamp" },
+        "updatedAt": { "type": "string", "description": "Last status update ISO timestamp" },
+        "overallStatus": { "type": "string", "description": "Application workflow status" },
+        "status": { "type": "string", "description": "Status code alias" },
+        "departmentTicketIds": { "type": "object", "description": "Inter-departmental downstream ticket identifiers" },
+        "slaDeadline": { "type": "string", "description": "Statutory SLA decision deadline" },
+        "slaBreached": { "type": "boolean", "description": "Whether SLA window was breached" },
+        "disbursementAmount": { "type": "string", "description": "Direct DBT disbursement amount" },
+        "officialRemarks": { "type": "string", "description": "Department officer remarks" }
+      },
+      "required": ["sanNumber", "citizenId", "schemeId", "departmentCode", "submittedAt"]
+    },
+    "ApplicationEvent": {
+      "title": "ApplicationEvent",
+      "description": "Lifecycle event or audit checkpoint for an application.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Event unique ID" },
+        "applicationId": { "type": "string", "description": "Reference to parent application SAN or ID" },
+        "deptId": { "type": "string", "description": "Department logging the event" },
+        "stage": { "type": "string", "description": "Stage name" },
+        "description": { "type": "string", "description": "Event narrative" },
+        "actor": { "type": "string", "description": "Actor or system node" },
+        "status": { "type": "string", "description": "Associated status code" },
+        "timestamp": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["applicationId", "stage", "description", "timestamp"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable SHA-256 hash-chained block written only by sovereign server logic.",
+      "type": "object",
+      "properties": {
+        "index": { "type": "number", "description": "Sequence block index" },
+        "action": { "type": "string", "maxLength": 100, "description": "Audit action type" },
+        "actor": { "type": "string", "maxLength": 150, "description": "Actor identity" },
+        "actorRole": { "type": "string", "enum": ["CITIZEN", "OFFICIAL", "SUPER_ADMIN"], "description": "Role of actor" },
+        "targetEntity": { "type": "string", "maxLength": 100, "description": "Target entity" },
+        "entityId": { "type": "string", "maxLength": 100, "description": "Target entity ID" },
+        "payload": { "type": "object", "description": "Action payload" },
+        "payloadDigest": { "type": "string", "maxLength": 64, "description": "SHA-256 digest of payload" },
+        "previousHash": { "type": "string", "maxLength": 64, "description": "Previous block SHA-256 hash pointer" },
+        "currentHash": { "type": "string", "maxLength": 64, "description": "Current block SHA-256 hash" },
+        "sha256Hash": { "type": "string", "maxLength": 64, "description": "Current block SHA-256 hash alias" },
+        "timestamp": { "type": "string", "description": "ISO block anchoring timestamp" }
+      },
+      "required": ["index", "action", "actor", "actorRole", "previousHash", "timestamp"]
+    },
+    "SchemaMapping": {
+      "title": "SchemaMapping",
+      "description": "Canonical AI-assisted schema mapping for legacy department databases.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Mapping ID" },
+        "departmentCode": { "type": "string", "description": "Department code" },
+        "departmentName": { "type": "string", "description": "Department name" },
+        "sourceSchema": { "type": "string", "description": "Source schema or table name" },
+        "sourceTableName": { "type": "string", "description": "Source table name" },
+        "targetSchema": { "type": "string", "description": "Target canonical model" },
+        "canonicalModel": { "type": "string", "description": "Canonical model name" },
+        "mappedFields": { "type": "array", "description": "Field mapping array" },
+        "suggestion": { "type": "string", "description": "AI explanation and recommendations" },
+        "aiExplanation": { "type": "string", "description": "AI explanation" },
+        "confidenceScores": { "type": "number", "description": "Overall confidence score" },
+        "overallConfidence": { "type": "number", "description": "Confidence score 0.0 - 1.0" },
+        "approved": { "type": "boolean", "description": "Approval status" },
+        "status": { "type": "string", "description": "PENDING_APPROVAL or APPROVED" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["departmentCode", "sourceSchema", "targetSchema", "approved", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile with role, contact info, and department reference."
+    },
+    "/credentials/{credentialId}": {
+      "schema": { "$ref": "#/entities/Credential" },
+      "description": "Verifiable credentials owned by citizens."
+    },
+    "/proofRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/ProofRequest" },
+      "description": "Predicate proof verification requests."
+    },
+    "/proofs/{proofId}": {
+      "schema": { "$ref": "#/entities/Proof" },
+      "description": "Generated ZK proofs with single-use nullifiers."
+    },
+    "/consentGrants/{consentId}": {
+      "schema": { "$ref": "#/entities/ConsentGrant" },
+      "description": "DPDP statutory data access consent authorizations."
+    },
+    "/applications/{applicationId}": {
+      "schema": { "$ref": "#/entities/Application" },
+      "description": "Unified welfare scheme applications with SAN tracking."
+    },
+    "/applicationEvents/{eventId}": {
+      "schema": { "$ref": "#/entities/ApplicationEvent" },
+      "description": "Lifecycle events and timeline markers for applications."
+    },
+    "/auditLog/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Tamper-evident SHA-256 audit ledger (write-only from server-side)."
+    },
+    "/schemaMappings/{mappingId}": {
+      "schema": { "$ref": "#/entities/SchemaMapping" },
+      "description": "Interoperability schema mappings generated by AI and approved by officials."
+    }
+  }
+}

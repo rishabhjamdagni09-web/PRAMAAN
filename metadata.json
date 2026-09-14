@@ -1,0 +1,6 @@
+{
+  "name": "Pramaan - National Interoperability & ZK Proof Platform",
+  "description": "Production-grade multi-tenant government interoperability platform powered by zero-knowledge proofs. Proof travels, your data doesn't.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
